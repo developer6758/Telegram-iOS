@@ -124,7 +124,7 @@ public final class CapsuleService {
     /// account-wide opened acknowledgement never changes this device's local opened state.
     @discardableResult public func synchronizeMetadata(envelopes: [CapsuleEnvelope], completion: @escaping (Result<Set<String>, Error>) -> Void) -> CapsuleCancellation {
         let cancellation = trackedCancellation()
-        queue.async {
+        queue.async { [self] in
             do {
                 guard envelopes.count <= 100 else { throw CapsuleError.invalidData }
                 var expected: [String: CapsuleEnvelope] = [:]
@@ -389,7 +389,7 @@ public final class CapsuleService {
         if openWaiters[id] != nil { openWaiters[id]?.append((cancellation, completion)); stateLock.unlock(); return cancellation }
         openWaiters[id] = [(cancellation, completion)]
         stateLock.unlock()
-        queue.async {
+        queue.async { [self] in
             do {
                 if let cached = try self.store.read().releases[id], cached.descriptorSHA256 == CapsuleCrypto.digest(envelope.descriptorBytes) {
                     self.finishOpen(id: id, generation: currentGeneration, result: .success(cached.payload)); return

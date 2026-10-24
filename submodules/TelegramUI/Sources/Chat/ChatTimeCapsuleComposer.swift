@@ -1,8 +1,10 @@
 import AccountContext
+import AlertUI
 import Display
 import Foundation
 import InteractiveTextComponent
 import OverlayStatusController
+import PresentationDataUtils
 import SwiftSignalKit
 import TelegramCore
 import TelegramPresentationData
@@ -156,7 +158,7 @@ private final class ChatTimeCapsuleComposerOperation {
     private var authorization: CapsuleAuthorizationSession?
     private var request: CapsuleCancellation?
     private var enqueue: Disposable?
-    private var overlay: OverlayStatusController?
+    private var overlay: ViewController?
     private var keepAlive: ChatTimeCapsuleComposerOperation?
     private var finished = false
     private var backgroundObserver: NSObjectProtocol?
