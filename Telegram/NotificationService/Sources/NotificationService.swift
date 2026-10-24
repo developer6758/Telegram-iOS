@@ -1,4 +1,5 @@
 import Foundation
+import TimeCapsuleSummary
 import PasscodeCore
 import UserNotifications
 import SwiftSignalKit
@@ -627,7 +628,8 @@ private struct NotificationContent: CustomStringConvertible {
         if let subtitle = self.subtitle {
             content.subtitle = subtitle
         }
-        if let body = self.body {
+        if let originalBody = self.body {
+            let body = CapsuleSafeSummary.resolve(originalBody)
             if #available(iOS 18.0, *) {
                 if !self.resolvedEmojiFiles.isEmpty {
                     let attributedString = NSMutableAttributedString(string: body)

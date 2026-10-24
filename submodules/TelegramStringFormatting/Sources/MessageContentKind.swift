@@ -1,4 +1,5 @@
 import Foundation
+import TimeCapsuleSummary
 import TelegramCore
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -263,6 +264,9 @@ public enum MessageContentKind: Equatable {
 }
 
 public func messageTextWithAttributes(message: EngineMessage) -> NSAttributedString {
+    if CapsuleSafeSummary.isCarrier(message.text) {
+        return NSAttributedString(string: "Time capsule")
+    }
     var attributedText = NSAttributedString(string: message.text)
     
     var entities: TextEntitiesMessageAttribute?
@@ -487,6 +491,9 @@ public func stringForMediaKind(_ kind: MessageContentKind, strings: Presentation
 }
 
 public func descriptionStringForMessage(contentSettings: ContentSettings, message: EngineMessage, strings: PresentationStrings, nameDisplayOrder: PresentationPersonNameOrder, dateTimeFormat: PresentationDateTimeFormat, accountPeerId: EnginePeer.Id) -> (NSAttributedString, Bool, Bool) {
+    if CapsuleSafeSummary.isCarrier(message.text) {
+        return (NSAttributedString(string: strings.TimeCapsule_Summary), false, false)
+    }
     let contentKind = messageContentKind(contentSettings: contentSettings, message: message, strings: strings, nameDisplayOrder: nameDisplayOrder, dateTimeFormat: dateTimeFormat, accountPeerId: accountPeerId)
     if message.richText != nil {
         let result = stringForMediaKind(contentKind, strings: strings)

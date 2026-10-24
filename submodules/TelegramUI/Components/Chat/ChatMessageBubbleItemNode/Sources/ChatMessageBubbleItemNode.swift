@@ -36,6 +36,8 @@ import ChatMessageDateAndStatusNode
 import ChatMessageBubbleContentNode
 import ChatHistoryEntry
 import ChatMessageTextBubbleContentNode
+import ChatMessageTimeCapsuleBubbleContentNode
+import TimeCapsuleCore
 import ChatMessageRichDataBubbleContentNode
 import ChatMessageItemCommon
 import ChatMessageReplyInfoNode
@@ -138,6 +140,13 @@ private func contentNodeMessagesAndClassesForItem(_ item: ChatMessageItem) -> ([
     var addedQuizAnswer = false
     
     outer: for (message, itemAttributes) in item.content {
+        // Recognize the transported carrier before generic text/media classification. Invalid or
+        // unknown signatures stay a bounded unavailable placeholder; they never request a key.
+        if CapsuleEnvelopeCodec.isCandidate(message.text), message.media.isEmpty {
+            result.append((message, ChatMessageTimeCapsuleBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))
+            needReactions = false
+            continue outer
+        }
         for attribute in message.attributes {
             if let attribute = attribute as? RestrictedContentMessageAttribute, attribute.platformText(platform: "ios", contentSettings: item.context.currentContentSettings.with { $0 }) != nil {
                 result.append((message, ChatMessageRestrictedBubbleContentNode.self, itemAttributes, BubbleItemAttributes(isAttachment: false, neighborType: .text, neighborSpacing: .default)))

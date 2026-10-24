@@ -85,6 +85,9 @@ private func findQuoteRange(string: String, quoteText: String, offset: Int?) -> 
 }
 
 public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
+    /// Presentation-only authorized content may be selected and copied locally, but must never
+    /// enter ordinary quote, translation, share or speech pipelines through this display model.
+    public var presentationOnlyCopySelection = false
     public final class ContainerNode: ASDisplayNode {
     }
     
@@ -1623,6 +1626,11 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                     guard let strongSelf = self, let item = strongSelf.item else {
                         return
                     }
+                    if strongSelf.presentationOnlyCopySelection {
+                        guard action == .copy else { return }
+                        UIPasteboard.general.setItems([["public.utf8-plain-text": text.string]], options: [.localOnly: true])
+                        return
+                    }
                     item.controllerInteraction.performTextSelectionAction(item.message, true, text, nil, action)
                 })
                 textSelectionNode.updateRange = { [weak self] selectionRange in
@@ -1639,7 +1647,7 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                             }
                         }
                     }
-                    if let textSelectionState = strongSelf.textSelectionState {
+                    if !strongSelf.presentationOnlyCopySelection, let textSelectionState = strongSelf.textSelectionState {
                         textSelectionState.set(.single(strongSelf.getSelectionState(range: selectionRange)))
                     }
                 }
@@ -1666,6 +1674,12 @@ public class ChatMessageTextBubbleContentNode: ChatMessageBubbleContentNode {
                 }
                 if item.associatedData.translateToLanguage != nil {
                     enableQuote = false
+                }
+                if self.presentationOnlyCopySelection {
+                    enableQuote = false
+                    enableOtherActions = false
+                    textSelectionNode.enableLookup = false
+                    textSelectionNode.enableSpeak = false
                 }
                 
                 textSelectionNode.enableQuote = enableQuote

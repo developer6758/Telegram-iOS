@@ -418,8 +418,18 @@ extension ChatControllerImpl {
         }))
     }
         
-    func beginDeleteMessagesWithUndo(messageIds: Set<EngineMessage.Id>, type: InteractiveMessagesDeletionType) {
-        var deleteImmediately = false
+    func beginDeleteMessagesWithUndo(messageIds: Set<EngineMessage.Id>, type: InteractiveMessagesDeletionType, capsuleDeletionPrepared: Bool = false, capsuleDeletionIrreversible: Bool = false) {
+        if !capsuleDeletionPrepared {
+            self.prepareCapsuleDeletion(messageIds: messageIds, type: type) { [weak self] succeeded, irreversible in
+                if succeeded {
+                    self?.beginDeleteMessagesWithUndo(messageIds: messageIds, type: type, capsuleDeletionPrepared: true, capsuleDeletionIrreversible: irreversible)
+                }
+            }
+            return
+        }
+        // A service tombstone cannot be undone. Capsule deletion uses the existing confirmation
+        // sheet, then commits immediately instead of offering a misleading native Undo action.
+        var deleteImmediately = capsuleDeletionIrreversible
         if case .forEveryone = type {
             deleteImmediately = true
         } else if case .scheduledMessages = self.presentationInterfaceState.subject {

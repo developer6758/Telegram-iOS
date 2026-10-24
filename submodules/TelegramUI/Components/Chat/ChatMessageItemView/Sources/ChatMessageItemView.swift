@@ -1,4 +1,6 @@
 import Foundation
+import TimeCapsuleSummary
+import TimeCapsuleCore
 import LottieSettings
 import UIKit
 import AsyncDisplayKit
@@ -88,6 +90,42 @@ public final class ChatMessageAccessibilityData {
     public let singleUrl: String?
     
     public init(item: ChatMessageItem, isSelected: Bool?) {
+        // The accessibility container is a sibling of the content node. Redact it here too;
+        // hiding the text renderer alone still lets VoiceOver read the transport descriptor.
+        if CapsuleSafeSummary.isCarrier(item.message.text) {
+            let strings = item.presentationData.strings
+            self.label = strings.TimeCapsule_Title
+            let accountId = String(item.context.account.peerId.id._internalGetInt64Value())
+            let context = CapsuleMessageContext(
+                accountId: accountId,
+                senderId: String(item.message.author?.id.id._internalGetInt64Value() ?? 0),
+                peerId: String(item.message.id.peerId.id._internalGetInt64Value()),
+                isOutgoing: !item.message.effectivelyIncoming(item.context.account.peerId),
+                isForwarded: item.message.forwardInfo != nil,
+                isDirectCloudChat: item.message.id.peerId.namespace == Namespaces.Peer.CloudUser
+            )
+            if let service = CapsuleService.configured(accountId: accountId),
+               let envelope = try? service.verify(carrier: item.message.text, context: context) {
+                if service.isLocallyOpened(capsuleId: envelope.descriptor.capsuleId),
+                   let payload = service.cachedPayload(capsuleId: envelope.descriptor.capsuleId) {
+                    self.value = payload.text
+                    self.hint = nil
+                    self.traits = .staticText
+                } else {
+                    let remaining = service.remainingSeconds(descriptor: envelope.descriptor)
+                    self.value = remaining > 0 ? strings.TimeCapsule_Locked + ", " + CapsuleCountdown.label(remainingSeconds: remaining) : strings.TimeCapsule_TapToOpen
+                    self.hint = strings.TimeCapsule_LockedHint
+                    self.traits = .button
+                }
+            } else {
+                self.value = strings.TimeCapsule_Unavailable
+                self.hint = nil
+                self.traits = .staticText
+            }
+            self.customActions = nil
+            self.singleUrl = nil
+            return
+        }
         var hint: String?
         var traits: UIAccessibilityTraits = []
         var singleUrl: String?

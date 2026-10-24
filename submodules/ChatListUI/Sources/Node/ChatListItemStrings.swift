@@ -1,4 +1,5 @@
 import Foundation
+import TimeCapsuleSummary
 import TelegramCore
 import TelegramPresentationData
 import TelegramUIPreferences
@@ -81,6 +82,10 @@ public func chatListItemStrings(strings: PresentationStrings, nameDisplayOrder: 
     let peer: EnginePeer?
     
     let message = messages.last
+
+    if let message, CapsuleSafeSummary.isCarrier(message.text) {
+        return (messageMainPeer(message) ?? chatPeer.chatMainPeer, false, strings.TimeCapsule_Summary, [], nil, nil, nil)
+    }
     
     if let restrictionReason = message?._asMessage().restrictionReason(platform: "ios", contentSettings: contentSettings) {
         return (nil, false, restrictionReason, [], nil, nil, nil)

@@ -1,5 +1,7 @@
 # Telegram iOS Source Code Compilation Guide
 
+The native iOS Time Capsule extension and its independent testing setup are documented in [docs/time-capsule/README.md](docs/time-capsule/README.md). Its Xcode/Simulator verification status is recorded separately.
+
 We welcome all developers to use our API and source code to create applications on our platform.
 There are several things we require from **all developers** for the moment.
 

@@ -1,4 +1,6 @@
 import Foundation
+import TimeCapsuleCore
+import TimeCapsuleSummary
 import UIKit
 import TelegramCore
 import AsyncDisplayKit
@@ -491,6 +493,39 @@ private func ephemeralReplacementContextMenuItems(chatPresentationInterfaceState
 func contextMenuForChatPresentationInterfaceState(chatPresentationInterfaceState: ChatPresentationInterfaceState, context: AccountContext, messages: [EngineRawMessage], controllerInteraction: ChatControllerInteraction?, selectAll: Bool, interfaceInteraction: ChatPanelInterfaceInteraction?, readStats: MessageReadStats? = nil, messageNode: ChatMessageItemView? = nil) -> Signal<ContextController.Items, NoError> {
     guard let interfaceInteraction = interfaceInteraction, let controllerInteraction = controllerInteraction else {
         return .single(ContextController.Items(content: .list([])))
+    }
+    if let message = messages.first, CapsuleSafeSummary.isCarrier(message.text) {
+        // Canonical transport text must never enter edit, forward, quote, translate or
+        // selection paths. Opened content has one explicit, local-only Copy action.
+        let accountId = String(context.account.peerId.id._internalGetInt64Value())
+        let messageContext = CapsuleMessageContext(
+            accountId: accountId,
+            senderId: String(message.author?.id.id._internalGetInt64Value() ?? 0),
+            peerId: String(message.id.peerId.id._internalGetInt64Value()),
+            isOutgoing: !message.effectivelyIncoming(context.account.peerId),
+            isForwarded: message.forwardInfo != nil,
+            isDirectCloudChat: message.id.peerId.namespace == Namespaces.Peer.CloudUser
+        )
+        let service = CapsuleService.configured(accountId: accountId)
+        let envelope = try? service?.verify(carrier: message.text, context: messageContext)
+        var actions: [ContextMenuItem] = []
+        if let service, let envelope,
+           service.isLocallyOpened(capsuleId: envelope.descriptor.capsuleId),
+           let payload = service.cachedPayload(capsuleId: envelope.descriptor.capsuleId) {
+            actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuCopy, icon: { theme in
+                return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Copy"), color: theme.contextMenu.primaryColor)
+            }, action: { _, completion in
+                UIPasteboard.general.setItems([["public.utf8-plain-text": payload.text]], options: [.localOnly: true])
+                controllerInteraction.displayUndo(.copy(text: chatPresentationInterfaceState.strings.Conversation_MessageCopied))
+                completion(.default)
+            })))
+        }
+        actions.append(.action(ContextMenuActionItem(text: chatPresentationInterfaceState.strings.Conversation_ContextMenuDelete, textColor: .destructive, icon: { theme in
+            return generateTintedImage(image: UIImage(bundleImageName: "Chat/Context Menu/Delete"), color: theme.contextMenu.destructiveColor)
+        }, action: { controller, completion in
+            interfaceInteraction.deleteMessages([message], controller, completion)
+        })))
+        return .single(ContextController.Items(content: .list(actions)))
     }
     if let message = messages.first {
         if message.id.namespace < 0 {

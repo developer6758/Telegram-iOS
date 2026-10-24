@@ -862,7 +862,7 @@ public func resendMessages(account: Account, messageIds: [MessageId]) -> Signal<
     }
 }
 
-func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId, messages: [(Bool, EnqueueMessage)], disableAutoremove: Bool = false, transformGroupingKeysWithPeerId: Bool = false) -> [MessageId?] {
+func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId, messages: [(Bool, EnqueueMessage)], disableAutoremove: Bool = false, transformGroupingKeysWithPeerId: Bool = false, timeCapsuleRandomId: Int64? = nil) -> [MessageId?] {
     /**
      * If it is a support account, mark messages as read here as they are
      * not marked as read when chat is opened.
@@ -990,7 +990,11 @@ func enqueueMessages(transaction: Transaction, account: Account, peerId: PeerId,
             flags.insert(.Unsent)
             
             var randomId: Int64 = 0
-            arc4random_buf(&randomId, 8)
+            if let timeCapsuleRandomId, messages.count == 1 {
+                randomId = timeCapsuleRandomId
+            } else {
+                arc4random_buf(&randomId, 8)
+            }
             var infoFlags = OutgoingMessageInfoFlags()
             if transformedMedia {
                 infoFlags.insert(.transformedMedia)

@@ -439,6 +439,38 @@ public extension TelegramEngine {
             )
         }
 
+        /// Atomically hands a sealed descriptor to the ordinary durable Telegram send queue.
+        /// The side outbox persists `randomId` before this call. A crash on either side of
+        /// enqueue can safely retry the same identity without inserting a second local row.
+        public func enqueueTimeCapsuleCarrier(to peerId: EnginePeer.Id, carrier: String, randomId: Int64) -> Signal<EngineMessage.Id?, NoError> {
+            guard peerId.namespace == Namespaces.Peer.CloudUser,
+                  peerId != self.account.peerId, randomId != 0,
+                  carrier.hasPrefix("Time Capsule — requires a compatible client.\nTCAP1."),
+                  carrier.utf16.count <= 3500 else {
+                return .single(nil)
+            }
+            return self.account.postbox.transaction { transaction -> EngineMessage.Id? in
+                guard let peer = transaction.getPeer(peerId) as? TelegramUser,
+                      peer.botInfo == nil else {
+                    return nil
+                }
+                if let existingId = transaction.messageIdForGloballyUniqueMessageId(peerId: peerId, id: randomId) {
+                    guard transaction.getMessage(existingId)?.text == carrier else {
+                        return nil
+                    }
+                    return existingId
+                }
+                let message = EnqueueMessage.message(
+                    text: carrier,
+                    attributes: [OutgoingContentInfoMessageAttribute(flags: [.disableLinkPreviews])],
+                    inlineStickers: [:], mediaReference: nil, threadId: nil,
+                    replyToMessageId: nil, replyToStoryId: nil, localGroupingKey: nil,
+                    correlationId: nil, bubbleUpEmojiOrStickersets: []
+                )
+                return enqueueMessages(transaction: transaction, account: self.account, peerId: peerId, messages: [(false, message)], timeCapsuleRandomId: randomId).first ?? nil
+            }
+        }
+
         public func enqueueOutgoingMessageWithChatContextResult(to peerId: PeerId, threadId: Int64?, botId: PeerId, result: ChatContextResult, replyToMessageId: EngineMessageReplySubject? = nil, replyToStoryId: StoryId? = nil, hideVia: Bool = false, silentPosting: Bool = false, scheduleTime: Int32? = nil, sendPaidMessageStars: StarsAmount?, postpone: Bool = false, correlationId: Int64? = nil) -> Bool {
             return _internal_enqueueOutgoingMessageWithChatContextResult(account: self.account, to: peerId, threadId: threadId, botId: botId, result: result, replyToMessageId: replyToMessageId, replyToStoryId: replyToStoryId, hideVia: hideVia, silentPosting: silentPosting, scheduleTime: scheduleTime, sendPaidMessageStars: sendPaidMessageStars, postpone: postpone, correlationId: correlationId)
         }

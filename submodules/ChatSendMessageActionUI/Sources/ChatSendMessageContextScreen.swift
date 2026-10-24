@@ -598,6 +598,23 @@ final class ChatSendMessageContextScreenComponent: Component {
                         )))
                     }
                 }
+                if let timeCapsule = sendMessage.timeCapsule {
+                    items.append(.action(ContextMenuActionItem(
+                        id: AnyHashable("timeCapsule"),
+                        text: environment.strings.TimeCapsule_Title,
+                        icon: { theme in
+                            return UIImage(systemName: "lock")?.withTintColor(theme.contextMenu.primaryColor, renderingMode: .alwaysOriginal)
+                        }, action: { [weak self] _, _ in
+                            guard let self else { return }
+                            self.animateOutToEmpty = true
+                            self.environment?.controller()?.dismiss()
+                            // The sheet handoff follows dismissal; it never routes through ordinary send.
+                            DispatchQueue.main.async {
+                                timeCapsule()
+                            }
+                        }
+                    )))
+                }
                 if canSchedule {
                     items.append(.action(ContextMenuActionItem(
                         id: AnyHashable("schedule"),

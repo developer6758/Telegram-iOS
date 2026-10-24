@@ -45,6 +45,8 @@ swift_library(
         "//submodules/TelegramUI/Components/Chat/ChatMessageBubbleContentNode",
         "//submodules/TelegramUI/Components/Chat/ChatHistoryEntry",
         "//submodules/TelegramUI/Components/Chat/ChatMessageTextBubbleContentNode",
+        "//submodules/TelegramUI/Components/Chat/ChatMessageTimeCapsuleBubbleContentNode",
+        "//submodules/TimeCapsuleCore",
         "//submodules/TelegramUI/Components/Chat/ChatMessageItemCommon",
         "//submodules/TelegramUI/Components/Chat/ChatMessageReplyInfoNode",
         "//submodules/TelegramUI/Components/Chat/ChatMessageCallBubbleContentNode",

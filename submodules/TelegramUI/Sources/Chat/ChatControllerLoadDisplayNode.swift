@@ -1,4 +1,5 @@
 import Foundation
+import TimeCapsuleSummary
 import UIKit
 import SwiftSignalKit
 import Display
@@ -1951,7 +1952,11 @@ extension ChatControllerImpl {
                         let _ = self.context.engine.messages.deleteMessagesInteractively(messageIds: Array(messageIds), type: actions.options == .deleteLocally ? .forLocalPeer : .forEveryone).startStandalone()
                         completion(.dismissWithoutContent)
                     } else if (messages.first?.flags.isSending ?? false) {
-                        let _ = self.context.engine.messages.deleteMessagesInteractively(messageIds: Array(messageIds), type: .forEveryone, deleteAllInGroup: true).startStandalone()
+                        if messages.contains(where: { CapsuleSafeSummary.isCarrier($0.text) }) {
+                            self.beginDeleteMessagesWithUndo(messageIds: messageIds, type: .forEveryone)
+                        } else {
+                            let _ = self.context.engine.messages.deleteMessagesInteractively(messageIds: Array(messageIds), type: .forEveryone, deleteAllInGroup: true).startStandalone()
+                        }
                         completion(.dismissWithoutContent)
                     } else {
                         if actions.options.intersection([.deleteLocally, .deleteGlobally]).isEmpty {

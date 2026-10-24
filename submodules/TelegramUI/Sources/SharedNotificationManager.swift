@@ -1,4 +1,5 @@
 import Foundation
+import TimeCapsuleSummary
 import UIKit
 import UserNotifications
 import SwiftSignalKit
@@ -243,6 +244,9 @@ public final class SharedNotificationManager {
                         title = alertTitle
                     }
                 }
+            }
+            if let notificationBody = body {
+                body = CapsuleSafeSummary.resolve(notificationBody)
             }
             if let locKey = payload["loc-key"] as? String {
                 if locKey == "SESSION_REVOKE" {

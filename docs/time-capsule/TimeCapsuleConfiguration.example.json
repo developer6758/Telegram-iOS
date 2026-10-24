@@ -1,0 +1,7 @@
+{
+  "service": "time-capsule-dev",
+  "base_url": "https://capsule.example.invalid",
+  "verification_keys": {
+    "dev-1": "REPLACE_WITH_STANDARD_BASE64_DER_SUBJECT_PUBLIC_KEY_INFO"
+  }
+}

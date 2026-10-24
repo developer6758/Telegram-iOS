@@ -84,3 +84,7 @@ tools/sim-watcher/dist/
 submodules/TelegramApi/Sources/SwiftPMGenerated/
 submodules/TelegramApi/ObjC/SwiftPMGenerated/
 submodules/TelegramApi/Tests/SwiftPMGenerated/
+
+# Developer-owned Time Capsule endpoint and Telegram application configuration.
+/Telegram/Telegram-iOS/Resources/TimeCapsuleConfiguration.json
+/build-system/time_capsule_development_configuration.json

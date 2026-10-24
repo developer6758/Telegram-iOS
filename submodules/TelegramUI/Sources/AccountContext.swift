@@ -2,6 +2,7 @@ import PasscodeCore
 import PasscodeUI
 import LocalAuthentication
 import Foundation
+import TimeCapsuleCore
 import SwiftSignalKit
 import UIKit
 import TelegramCore
@@ -123,6 +124,9 @@ public final class AccountContextImpl: AccountContext {
     }
     public let account: Account
     public let engine: TelegramEngine
+    private let capsuleLifecycleDisposable = MetaDisposable()
+    private var capsuleService: CapsuleService?
+    private var capsuleDidLogOut = false
     
     public let fetchManager: FetchManager
     public let prefetchManager: PrefetchManager?
@@ -687,9 +691,62 @@ public final class AccountContextImpl: AccountContext {
                 return try await requestPasscodeAuthentication(context: self, scope: .resource(namespace: request.namespace), lifetime: request.lifetime, biometricReason: self.sharedContext.currentPresentationData.with { $0 }.strings.Wallet_AuthenticationReason, authenticateBiometrics: authenticateBiometrics)
             }
         }
+        if sharedContext.applicationBindings.isMainApp && !temp {
+            let removedFromAccountManager = sharedContext.accountManager.accountRecords()
+            |> map { view -> Bool in
+                guard let record = view.records.first(where: { $0.id == account.id }) else { return true }
+                return record.attributes.contains(where: { attribute in
+                    if case .loggedOut = attribute { return true }
+                    return false
+                })
+            }
+            |> distinctUntilChanged
+            self.capsuleLifecycleDisposable.set((combineLatest(sharedContext.applicationBindings.applicationInForeground, account.loggedOut, removedFromAccountManager)
+            |> deliverOnMainQueue).start(next: { [weak self] inForeground, loggedOut, removed in
+                self?.updateTimeCapsuleLifecycle(inForeground: inForeground, loggedOut: loggedOut || removed)
+            }))
+        }
+    }
+
+    private func updateTimeCapsuleLifecycle(inForeground: Bool, loggedOut: Bool) {
+        guard !self.capsuleDidLogOut else { return }
+        let accountId = String(self.account.peerId.id._internalGetInt64Value())
+        guard let service = self.capsuleService ?? CapsuleService.configured(accountId: accountId) else { return }
+        self.capsuleService = service
+        if loggedOut {
+            try? service.logout()
+            self.capsuleDidLogOut = true
+            self.capsuleService = nil
+        } else if inForeground {
+            // A sealed side-outbox entry survives a crash before native enqueue. The engine
+            // checks the same persisted random ID inside the Postbox write transaction.
+            func enqueueSealed(_ message: CapsuleSealedMessage) {
+                guard let numericPeerId = Int64(message.recipientId) else { return }
+                let peerId = EnginePeer.Id(namespace: Namespaces.Peer.CloudUser, id: EnginePeer.Id.Id._internalFromInt64Value(numericPeerId))
+                let _ = self.engine.messages.enqueueTimeCapsuleCarrier(to: peerId, carrier: message.carrier, randomId: message.nativeRandomId).startStandalone(next: { id in
+                    if id != nil { try? service.markEnqueued(operationId: message.operationId) }
+                })
+            }
+            let sealed = service.pendingOutbox()
+            for message in sealed { enqueueSealed(message) }
+            let sealedOperationIds = Set(sealed.map(\.operationId))
+            if service.hasSession {
+                service.resumePendingDeletions(completion: { _ in })
+                for operationId in service.pendingOperationIds() where !sealedOperationIds.contains(operationId) {
+                    service.resumeSeal(operationId: operationId) { result in
+                        if case let .success(message) = result { enqueueSealed(message) }
+                    }
+                }
+            }
+        } else {
+            service.clearMemory()
+        }
     }
 
     deinit {
+        self.capsuleLifecycleDisposable.dispose()
+        self.capsuleService?.clearMemory()
+        self.capsuleService?.releaseRegistryReference()
         if self.walletContext != nil {
             self.account.walletTransferTasksRunning.set(.single(false))
         }

@@ -64,6 +64,10 @@ swift_library(
         "-warnings-as-errors",
     ],
     deps = [
+        "//submodules/TimeCapsuleCore",
+        "//submodules/TimeCapsuleAuthorizationUI",
+        "//submodules/TimeCapsuleSummary",
+        "//submodules/TelegramUI/Components/InteractiveTextComponent",
         "//submodules/CrashReporting:CrashReporting",
         "//third-party/recaptcha:RecaptchaEnterprise",
         "//submodules/SSignalKit/SwiftSignalKit:SwiftSignalKit",
